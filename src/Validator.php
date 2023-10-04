@@ -23,7 +23,6 @@ class Validator
         }
 
         return [$ruleName, $params];
-
     }
 
     public function make($data, $ruleFields, $customMessages = null, $attributeLabels = null)
@@ -33,7 +32,6 @@ class Validator
         $this->errorBag = new ErrorBag();
 
         foreach ($ruleFields as $field => $rules) {
-
             $attributeLabel = $field;
 
             if (isset($attributeLabels[$field])) {
@@ -47,7 +45,6 @@ class Validator
             $value = $this->inputContainer->getAttributeValue();
 
             foreach ($rules as $ruleName) {
-
                 if ($ruleName == 'nullable' && $this->isEmpty($value)) {
                     break;
                 }
@@ -67,7 +64,6 @@ class Validator
                     $this->errorBag->addError($ruleClass, $customMessages);
                     break;
                 }
-
             }
         }
 
@@ -89,7 +85,6 @@ class Validator
         }
 
         return $data;
-
     }
 
     private function stripAllTags($text, $removeBreaks = false)
@@ -110,7 +105,7 @@ class Validator
 
     public function fails()
     {
-        return !empty($this->errorBag->getErrors()) ? true : false;
+        return $this->errorBag->hasErrors();
     }
 
     public function errors()
@@ -127,15 +122,9 @@ class Validator
                 throw new RuleErrorException("Unsupported validation rule: $ruleName");
             }
 
-            return new $ruleClass;
-
-        } else if (is_subclass_of($ruleName, Rule::class)) {
-
-            $customRuleClass = \is_object($ruleName) ? $ruleName : new $ruleName();
-            return $customRuleClass;
-
+            return new $ruleClass();
+        } elseif (is_subclass_of($ruleName, Rule::class)) {
+            return \is_object($ruleName) ? $ruleName : new $ruleName();
         }
-
     }
-
 }

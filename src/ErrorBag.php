@@ -28,19 +28,17 @@ class ErrorBag
         }
 
         $this->errors[$attributeKey][] = $message;
-
     }
 
     private function replacePlaceholders($placeholders, $message)
     {
         foreach ($placeholders as $key => $placeholder) {
-            if (isset($placeholders[$key])) {
-                if (is_array($placeholder)) {
-                    $placeholder = implode(',', $placeholder);
-                }
-                $message = str_replace(":" . $key, $placeholder, $message);
+            if (is_array($placeholder)) {
+                $placeholder = implode(',', $placeholder);
             }
+            $message = str_replace(':' . $key, $placeholder, $message);
         }
+
         return $message;
     }
 
