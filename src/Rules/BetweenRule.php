@@ -1,10 +1,12 @@
 <?php
 namespace BitApps\WPValidator\Rules;
 
+use BitApps\WPValidator\Helpers;
 use BitApps\WPValidator\Rule;
 
 class BetweenRule extends Rule
 {
+    use Helpers;
 
     protected $message = "The :attribute must be between :min and :max";
 
@@ -17,7 +19,14 @@ class BetweenRule extends Rule
         $min = (int) $this->getParameter('min');
         $max = (int) $this->getParameter('max');
 
-        return strlen($value) >= $min && strlen($value) <= $max;
+        $length = $this->getValueLength($value);
+
+        if ($length) {
+            return $length >= $min && $length <= $max;
+        }
+        
+        return false;
+
     }
 
     public function getParamKeys()

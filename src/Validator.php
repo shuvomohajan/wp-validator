@@ -6,24 +6,13 @@ use BitApps\WPValidator\Exception\RuleErrorException;
 
 class Validator
 {
-    use Helpers;
+    use Helpers, SanitizationMethods;
 
-    protected $errorBag;
+    private $errorBag;
 
-    protected $inputContainer;
+    private $inputContainer;
 
-    public function parseRule($rule)
-    {
-        $exp = explode(':', $rule, 2);
-        $ruleName = $exp[0];
-        $params = [];
-
-        if (isset($exp[1])) {
-            $params = explode(',', $exp[1]);
-        }
-
-        return [$ruleName, $params];
-    }
+    private $validated = [];
 
     public function make($data, $ruleFields, $customMessages = null, $attributeLabels = null)
     {
@@ -32,6 +21,7 @@ class Validator
         $this->errorBag = new ErrorBag();
 
         foreach ($ruleFields as $field => $rules) {
+
             $attributeLabel = $field;
 
             if (isset($attributeLabels[$field])) {
@@ -44,13 +34,29 @@ class Validator
 
             $value = $this->inputContainer->getAttributeValue();
 
+            if (array_key_exists($field, $data)) {
+                $this->validated[$field] = $value;
+            }
+
+            if (\in_array('nullable', $rules) && $this->isEmpty($value)) {
+                continue;
+            }
+
             foreach ($rules as $ruleName) {
-                if ($ruleName == 'nullable' && $this->isEmpty($value)) {
-                    break;
+
+                if (is_string($ruleName) && strpos($ruleName, 'sanitize') !== false) {
+                    $this->applyFilter($ruleName, $field, $value);
+
+                    continue;
                 }
 
-                list($ruleName, $paramValues) = $this->parseRule($ruleName);
-                $ruleClass = $this->resolveRule($ruleName);
+                if (is_subclass_of($ruleName, Rule::class)) {
+                    $ruleClass = \is_object($ruleName) ? $ruleName : new $ruleName();
+                } else {
+                    list($ruleName, $paramValues) = $this->parseRule($ruleName);
+                    $ruleClass = $this->resolveRule($ruleName);
+                }
+
                 $ruleClass->setInputDataContainer($this->inputContainer);
                 $ruleClass->setRuleName($ruleName);
 
@@ -64,48 +70,16 @@ class Validator
                     $this->errorBag->addError($ruleClass, $customMessages);
                     break;
                 }
+
             }
         }
 
         return $this;
     }
 
-    public function sanitize()
-    {
-        if (empty($this->inputContainer->getData())) {
-            return [];
-        }
-
-        $data = $this->inputContainer->getData();
-
-        foreach ($data as $key => $value) {
-            if (is_string($value)) {
-                $data[$key] = $this->stripAllTags($value);
-            }
-        }
-
-        return $data;
-    }
-
-    private function stripAllTags($text, $removeBreaks = false)
-    {
-        if (is_null($text) && !is_scalar($text)) {
-            return '';
-        }
-
-        $text = preg_replace('@<(script|style)[^>]*?>.*?</\\1>@si', '', $text);
-        $text = strip_tags($text);
-
-        if ($removeBreaks) {
-            $text = preg_replace('/[\r\n\t ]+/', ' ', $text);
-        }
-
-        return trim($text);
-    }
-
     public function fails()
     {
-        return $this->errorBag->hasErrors();
+        return !empty($this->errorBag->getErrors()) ? true : false;
     }
 
     public function errors()
@@ -113,18 +87,55 @@ class Validator
         return $this->errorBag->getErrors();
     }
 
-    protected function resolveRule($ruleName)
+    private function resolveRule($ruleName)
     {
         if (is_string($ruleName)) {
-            $ruleClass = "BitApps\WPValidator\\Rules\\" . str_replace(' ', '', ucwords(str_replace('_', ' ', $ruleName))) . 'Rule';
+            $ruleClass = __NAMESPACE__ . '\\Rules\\' . str_replace(' ', '', ucwords(str_replace('_', ' ', $ruleName))) . 'Rule';
 
             if (!class_exists($ruleClass)) {
                 throw new RuleErrorException("Unsupported validation rule: $ruleName");
             }
 
-            return new $ruleClass();
-        } elseif (is_subclass_of($ruleName, Rule::class)) {
-            return \is_object($ruleName) ? $ruleName : new $ruleName();
+            return new $ruleClass;
+
         }
     }
+
+    private function parseRule($rule)
+    {
+        $exp = explode(':', $rule, 2);
+        $ruleName = $exp[0];
+        $params = [];
+
+        if (isset($exp[1])) {
+            $params = explode(',', $exp[1]);
+        }
+
+        return [$ruleName, $params];
+
+    }
+
+    public function validated()
+    {
+        return empty($this->errors()) ? $this->validated : $this->errors();
+    }
+
+    private function applyFilter($sanitize, $fieldName, $value)
+    {
+        $data = explode('|', $sanitize);
+
+        $sanitizeName = isset($data[0]) ? explode(':', $data[0]) : [];
+        $params = isset($data[1]) ? explode(',', $data[1]) : [];
+
+        if (\count($sanitizeName) === 2) {
+
+            list($prefix, $suffix) = $sanitizeName;
+            $sanitizationMethod = $prefix . str_replace('_', '', ucwords($suffix, '_'));
+
+            if (method_exists($this, $sanitizationMethod)) {
+                $this->validated[$fieldName] = $this->{$sanitizationMethod}($value, $params);
+            }
+        }
+    }
+
 }

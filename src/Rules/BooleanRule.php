@@ -1,18 +1,16 @@
 <?php
+
 namespace BitApps\WPValidator\Rules;
 
-use BitApps\WPValidator\Helpers;
 use BitApps\WPValidator\Rule;
 
-class RequiredRule extends Rule
+class BooleanRule extends Rule
 {
-    use Helpers;
-
-    private $message = 'The :attribute field is required';
+    private $message = 'The :attribute must be a boolean';
 
     public function validate($value)
     {
-        return !$this->isEmpty($value);
+        return \in_array($value, [true, false, 'true', 'false', 1, 0, '0', '1'], true);
     }
 
     public function message()

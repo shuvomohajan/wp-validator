@@ -8,19 +8,23 @@ test('validator', function () {
     $data = [
         'first_name' => 'John',
         'last_name' => '',
-        'phone' => '',
+        'phone' => '018xxxxxxxx',
+        'age' => '21',
         'email' => 'email@example',
         'password' => '##112233',
         'confirm_password' => '##11223',
+        'agree' => 'yes',
     ];
 
     $rules = [
         'first_name' => ['required', 'string'],
         'last_name' => ['required', 'string'],
-        'phone' => ['nullable', 'integer'],
+        'age' => ['required', 'integer', 'between:18,25'],
+        'phone' => ['required', 'size:11'],
         'email' => ['required', 'email'],
         'password' => ['required', 'min:8'],
         'confirm_password' => ['required', 'same:password'],
+        'agree' => ['required', 'accepted'],
     ];
 
     $customMessages = [];
@@ -38,10 +42,11 @@ test('validator', function () {
     $errors = $validation->errors();
     expect(true)->toBe($validation->fails(true));
     expect($errors)->toBeArray();
-    expect($errors)->toHaveCount(3);
-    expect($errors)->toHaveKeys(['last_name', 'email', 'confirm_password']);
+    expect($errors)->toHaveCount(4);
+    expect($errors)->toHaveKeys(['last_name', 'age', 'email', 'confirm_password']);
     expect($errors)->toBe([
         'last_name' => ['The Last Name field is required'],
+        'age' => ['The age must be between 18 and 25'],
         'email' => ['The Email must be a valid email address'],
         'confirm_password' => ['The Confirm Password and password must match'],
     ]);

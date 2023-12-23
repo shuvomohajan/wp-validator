@@ -19,26 +19,34 @@ class ErrorBag
 
         $placeholders = array_merge($paramValues, $defaultPlaceholders);
 
-        if (isset($customMessages[$attributeKey][$roleName])) {
+        if (is_string($roleName) && isset($customMessages[$attributeKey][$roleName])) {
             $message = $this->replacePlaceholders($placeholders, $customMessages[$attributeKey][$roleName]);
-        } elseif (isset($customMessages[$roleName])) {
+        } elseif (is_string($roleName) && isset($customMessages[$roleName])) {
             $message = $this->replacePlaceholders($placeholders, $customMessages[$roleName]);
         } else {
             $message = $this->replacePlaceholders($placeholders, $role->message());
         }
 
         $this->errors[$attributeKey][] = $message;
+
     }
 
     private function replacePlaceholders($placeholders, $message)
     {
         foreach ($placeholders as $key => $placeholder) {
-            if (is_array($placeholder)) {
-                $placeholder = implode(',', $placeholder);
-            }
-            $message = str_replace(':' . $key, $placeholder, $message);
-        }
+            if (isset($placeholders[$key])) {
 
+                if (is_object($placeholder)) {
+                    $placeholder = (array) $placeholder;
+                }
+
+                if (is_array($placeholder)) {
+                    $placeholder = implode(',', $placeholder);
+                }
+                $message = str_replace(":" . $key, $placeholder, $message);
+
+            }
+        }
         return $message;
     }
 
